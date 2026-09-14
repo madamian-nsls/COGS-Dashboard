@@ -1528,8 +1528,11 @@ def approval_data():
         print(f"[NSLS] Live on-hand fetch raised unexpectedly, using CSV fallback: {ex}")
 
     # -----------------------------------------------------------------------
-    # Phase 3 — Build final rows (prev_cogs still fetched per-item via API).
+    # Phase 3 — Batch-fetch prev_cogs for all pending items, then build rows.
     # -----------------------------------------------------------------------
+    all_iids = [r["iid"] for r in pending]
+    batch_costs = get_all_inventory_costs(store, client_id, client_secret, all_iids)
+
     rows = []
     for r in resolved:
         if r["type"] == "done":
@@ -1541,10 +1544,7 @@ def approval_data():
         base         = r["base"]
         invoice_cost = base["invoice_cost"]
 
-        try:
-            prev_cogs = round(get_inventory_item_cost(store, client_id, client_secret, iid), 2)
-        except Exception:
-            prev_cogs = 0.0
+        prev_cogs = batch_costs.get(iid, 0.0)
 
         if sku in live_on_hand:
             on_hand           = live_on_hand[sku]
