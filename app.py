@@ -1435,6 +1435,18 @@ def approval_data():
     except Exception as e:
         return jsonify({"error": f"Shopify API error: {e}"}), 500
 
+    # Pre-populate the SKU→IID cache from products we already fetched,
+    # so get_live_on_hand_batch skips the separate /variants.json pagination.
+    if store not in _sku_iid_cache:
+        iid_map = {}
+        for p in products:
+            for v in p.get("variants", []):
+                sku = (v.get("sku") or "").strip()
+                iid = v.get("inventory_item_id")
+                if sku and iid:
+                    iid_map[sku] = iid
+        _sku_iid_cache[store] = iid_map
+
     # Load CSV once for reference matching and CSV on-hand fallback
     csv_rows = _load_csv_products() if ref_entries else []
     on_hand_map = load_inventory_on_hand()
